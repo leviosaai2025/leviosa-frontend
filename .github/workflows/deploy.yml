@@ -61,16 +61,16 @@ jobs:
 
       - name: Copy files to server
         run: |
-          ssh -o StrictHostKeyChecking=no root@${{ secrets.NCP_SERVER_IP }} "mkdir -p /opt/leviosa/leviosa-frontend/nginx/ssl"
-          scp -o StrictHostKeyChecking=no .env root@${{ secrets.NCP_SERVER_IP }}:/opt/leviosa/leviosa-frontend/.env
-          scp -o StrictHostKeyChecking=no docker-compose.prod.yml root@${{ secrets.NCP_SERVER_IP }}:/opt/leviosa/leviosa-frontend/docker-compose.prod.yml
-          scp -r -o StrictHostKeyChecking=no nginx/nginx.conf root@${{ secrets.NCP_SERVER_IP }}:/opt/leviosa/leviosa-frontend/nginx/nginx.conf
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.NCP_SERVER_IP }} "mkdir -p ~/leviosa-frontend/nginx/ssl"
+          scp -o StrictHostKeyChecking=no .env root@${{ secrets.NCP_SERVER_IP }}:~/leviosa-frontend/.env
+          scp -o StrictHostKeyChecking=no docker-compose.prod.yml root@${{ secrets.NCP_SERVER_IP }}:~/leviosa-frontend/docker-compose.prod.yml
+          scp -r -o StrictHostKeyChecking=no nginx/nginx.conf root@${{ secrets.NCP_SERVER_IP }}:~/leviosa-frontend/nginx/nginx.conf
 
       - name: Deploy to NCP Server
         run: |
           ssh root@${{ secrets.NCP_SERVER_IP }} << 'EOF'
           set -e
-          cd /opt/leviosa/leviosa-frontend
+          cd ~/leviosa-frontend
 
           echo "Disk usage check..."
           DISK_USAGE=$(df --output=pcent / | tail -n1 | tr -dc '0-9')
@@ -93,6 +93,10 @@ jobs:
               docker image prune -af
               echo "Docker cleanup complete"
           fi
+
+          echo "Setting SSL cert permissions..."
+          chmod 644 ~/leviosa-frontend/nginx/ssl/origin.pem
+          chmod 644 ~/leviosa-frontend/nginx/ssl/origin-key.pem
 
           echo "Logging into DockerHub..."
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
