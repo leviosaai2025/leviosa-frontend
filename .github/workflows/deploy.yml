@@ -1,4 +1,4 @@
-name: Deploy Frontend
+name: Deploy Frontend to NCP
 
 on:
   push:
@@ -9,12 +9,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  lint-test-build:
-    name: Lint, Test, Build
+  build-and-deploy:
     runs-on: ubuntu-latest
-    env:
-      NEXT_PUBLIC_CS_API_URL: ${{ vars.NEXT_PUBLIC_CS_API_URL }}
-      NEXT_PUBLIC_SOURCING_API_URL: ${{ vars.NEXT_PUBLIC_SOURCING_API_URL }}
+    timeout-minutes: 15
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,43 +29,114 @@ jobs:
       - name: Test
         run: bun run test
 
-      - name: Build
-        run: |
-          NEXT_PUBLIC_CS_API_URL="${NEXT_PUBLIC_CS_API_URL:-https://cs-api.example.com}" \
-          NEXT_PUBLIC_SOURCING_API_URL="${NEXT_PUBLIC_SOURCING_API_URL:-https://sourcing-api.example.com}" \
-          bun run build
-
-  deploy:
-    name: Deploy to VPS
-    needs: [lint-test-build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            export GIT_SSH_COMMAND="ssh -i /root/.ssh/deploy_key -o StrictHostKeyChecking=accept-new"
-            FE_DIR="/opt/leviosa/leviosa-fe-cs"
-            FE_REPO="git@github.com:leviosaai2025/leviosa-fe-cs.git"
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-            mkdir -p /opt/leviosa
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/leviosa-frontend:latest
+          build-args: |
+            NEXT_PUBLIC_CS_API_URL=${{ vars.NEXT_PUBLIC_CS_API_URL }}
+            NEXT_PUBLIC_SOURCING_API_URL=${{ vars.NEXT_PUBLIC_SOURCING_API_URL }}
+          no-cache: true
 
-            if [ ! -d "$FE_DIR/.git" ]; then
-              git clone "$FE_REPO" "$FE_DIR"
-            fi
+      - name: Create .env file
+        run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" > .env
+          echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" >> .env
 
-            cd "$FE_DIR"
-            git pull origin main
+      - name: Add SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.NCP_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.NCP_SERVER_IP }} >> ~/.ssh/known_hosts
 
-            if [ ! -f .env ]; then
-              cp .env.production.example .env
-            fi
+      - name: Copy files to server
+        run: |
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.NCP_SERVER_IP }} "mkdir -p /opt/leviosa/leviosa-frontend/nginx/ssl"
+          scp -o StrictHostKeyChecking=no .env root@${{ secrets.NCP_SERVER_IP }}:/opt/leviosa/leviosa-frontend/.env
+          scp -o StrictHostKeyChecking=no docker-compose.prod.yml root@${{ secrets.NCP_SERVER_IP }}:/opt/leviosa/leviosa-frontend/docker-compose.prod.yml
+          scp -r -o StrictHostKeyChecking=no nginx/nginx.conf root@${{ secrets.NCP_SERVER_IP }}:/opt/leviosa/leviosa-frontend/nginx/nginx.conf
 
-            docker compose -f docker-compose.prod.yml build --pull
-            docker compose -f docker-compose.prod.yml up -d
+      - name: Deploy to NCP Server
+        run: |
+          ssh root@${{ secrets.NCP_SERVER_IP }} << 'EOF'
+          set -e
+          cd /opt/leviosa/leviosa-frontend
 
-            sleep 10
-            curl -sf http://localhost:3000 >/dev/null
+          echo "Disk usage check..."
+          DISK_USAGE=$(df --output=pcent / | tail -n1 | tr -dc '0-9')
+
+          if ! command -v docker &> /dev/null; then
+              echo "Docker is not installed. Install it first:"
+              echo "sudo apt update && sudo apt install -y docker.io docker-compose-plugin"
+              echo "sudo systemctl enable docker && sudo systemctl start docker"
+              exit 1
+          fi
+
+          if ! docker compose version &> /dev/null; then
+              echo "docker compose v2 is not installed."
+              exit 1
+          fi
+
+          if [ "$DISK_USAGE" -ge 85 ]; then
+              echo "Disk usage ${DISK_USAGE}% - cleaning Docker resources..."
+              docker container prune -f
+              docker image prune -af
+              echo "Docker cleanup complete"
+          fi
+
+          echo "Logging into DockerHub..."
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+          if [ ! -f .env ]; then
+              echo ".env file is missing."
+              exit 1
+          fi
+
+          echo "Pulling latest image..."
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/leviosa-frontend:latest
+
+          echo "Stopping existing containers..."
+          docker compose -f docker-compose.prod.yml down --remove-orphans || true
+
+          echo "Starting containers..."
+          export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+          docker compose -f docker-compose.prod.yml up -d || {
+              echo "Container startup failed! Checking logs..."
+              docker compose -f docker-compose.prod.yml logs --tail=50
+              exit 1
+          }
+
+          echo "Waiting for healthcheck..."
+          SUCCESS=false
+          for i in $(seq 1 30); do
+              if docker compose -f docker-compose.prod.yml ps frontend | grep -q "healthy"; then
+                  echo "Healthcheck passed! (attempt: $i)"
+                  SUCCESS=true
+                  break
+              elif docker compose -f docker-compose.prod.yml ps frontend | grep -q "Up"; then
+                  echo "Container running, waiting for healthcheck... ($i/30)"
+                  sleep 2
+              else
+                  echo "Waiting for service to start... ($i/30)"
+                  sleep 2
+              fi
+          done
+
+          if [ "$SUCCESS" != true ]; then
+              echo "Healthcheck failed! Recent logs:"
+              docker compose -f docker-compose.prod.yml logs --tail=50 frontend || true
+              exit 1
+          fi
+
+          echo "Deploy complete!"
+          EOF
