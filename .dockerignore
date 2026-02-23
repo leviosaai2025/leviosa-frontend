@@ -1,4 +1,4 @@
-# Dependencies (reinstalled with npm ci in image)
+# Dependencies (reinstalled with bun install in image)
 node_modules
 .pnp
 .pnp.*
@@ -36,3 +36,4 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+bun-debug.log*

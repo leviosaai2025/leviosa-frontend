@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+        NEXT_PUBLIC_CS_API_URL: ${NEXT_PUBLIC_CS_API_URL:-}
         NEXT_PUBLIC_SOURCING_API_URL: ${NEXT_PUBLIC_SOURCING_API_URL:-}
     container_name: leviosa-fe-cs
     restart: unless-stopped

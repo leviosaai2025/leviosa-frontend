@@ -14,7 +14,7 @@ Frontend console for Leviosa CS, an automated Naver Commerce customer-service Sa
 Create `.env.local` (or copy from `.env.example`):
 
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_CS_API_URL=http://localhost:8000
 NEXT_PUBLIC_SOURCING_API_URL=http://localhost:8001
 GEMINI_API_KEY=
 ```
@@ -22,8 +22,8 @@ GEMINI_API_KEY=
 ## Run
 
 ```bash
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 
 App runs on `http://localhost:3000` by default.
@@ -58,7 +58,7 @@ leviosa/
   - `VPS_USER`
   - `VPS_SSH_KEY`
 - Optional repository variables (for CI build stage):
-  - `NEXT_PUBLIC_API_URL`
+  - `NEXT_PUBLIC_CS_API_URL`
   - `NEXT_PUBLIC_SOURCING_API_URL`
 - Server path: `/opt/leviosa/leviosa-frontend`
 - Production environment file: `.env` (template: `.env.production.example`)

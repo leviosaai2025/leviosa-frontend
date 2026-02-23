@@ -1,21 +1,21 @@
 # Stage 1: Dependencies
-FROM node:20-alpine AS deps
+FROM oven/bun:1-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
 # Stage 2: Build
-FROM node:20-alpine AS builder
+FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_CS_API_URL
 ARG NEXT_PUBLIC_SOURCING_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_CS_API_URL=$NEXT_PUBLIC_CS_API_URL
 ENV NEXT_PUBLIC_SOURCING_API_URL=$NEXT_PUBLIC_SOURCING_API_URL
 
-RUN npm run build
+RUN bun run build
 
 # Stage 3: Production
 FROM node:20-alpine AS runner

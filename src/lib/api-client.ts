@@ -1,7 +1,7 @@
 import { clearStoredTokens, getAccessToken, getRefreshToken, setStoredTokens } from "@/lib/auth-storage";
 import type { ErrorResponse, SuccessResponse, TokenPair, ValidationErrorDetail } from "@/types/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_CS_API_URL ?? "http://localhost:8000";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 

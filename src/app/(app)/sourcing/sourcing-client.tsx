@@ -461,8 +461,8 @@ export function SourcingClient() {
       if (optName) data.title = optName;
       else if (p.name) data.title = p.name;
       const optCover = coverImages.get(p.product_no);
-      if (optCover) data.thumb = optCover;
-      else if (p.image_url) data.thumb = p.image_url;
+      if (optCover) data.cover_image = optCover;
+      else if (p.image_url) data.cover_image = p.image_url;
       return data;
     });
 
