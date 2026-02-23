@@ -17,8 +17,11 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Leviosa CS",
-  description: "Automated Naver Commerce customer service console",
+  title: "LeviosaAI",
+  description: "AI-powered automation platform for Naver Commerce sellers",
+  icons: {
+    icon: "/leviosa-logo-bw.png",
+  },
 };
 
 export default function RootLayout({
