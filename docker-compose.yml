@@ -1,0 +1,19 @@
+services:
+  frontend:
+    image: node:20-alpine
+    container_name: leviosa-fe-cs-dev
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_SOURCING_API_URL=${NEXT_PUBLIC_SOURCING_API_URL:-http://localhost:8001}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - NEXT_TELEMETRY_DISABLED=1
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: sh -c "npm ci && npm run dev -- --hostname 0.0.0.0 --port 3000"

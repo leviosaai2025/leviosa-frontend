@@ -1,0 +1,29 @@
+"use client";
+
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+import { hasStoredAccessToken } from "@/lib/auth-storage";
+
+export function HomeClient() {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (hasStoredAccessToken()) {
+      router.replace("/sourcing");
+      return;
+    }
+
+    router.replace("/login");
+  }, [router]);
+
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm">
+        <Loader2 className="size-4 animate-spin text-primary" />
+        <span className="text-sm text-muted-foreground">Redirecting...</span>
+      </div>
+    </div>
+  );
+}

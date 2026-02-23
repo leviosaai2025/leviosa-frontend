@@ -1,0 +1,76 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+jobs:
+  lint-test-build:
+    name: Lint, Test, Build
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+      NEXT_PUBLIC_SOURCING_API_URL: ${{ vars.NEXT_PUBLIC_SOURCING_API_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: |
+          NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://cs-api.example.com}" \
+          NEXT_PUBLIC_SOURCING_API_URL="${NEXT_PUBLIC_SOURCING_API_URL:-https://sourcing-api.example.com}" \
+          npm run build
+
+  deploy:
+    name: Deploy to VPS
+    needs: [lint-test-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            export GIT_SSH_COMMAND="ssh -i /root/.ssh/deploy_key -o StrictHostKeyChecking=accept-new"
+            FE_DIR="/opt/leviosa/leviosa-fe-cs"
+            FE_REPO="git@github.com:leviosaai2025/leviosa-fe-cs.git"
+
+            mkdir -p /opt/leviosa
+
+            if [ ! -d "$FE_DIR/.git" ]; then
+              git clone "$FE_REPO" "$FE_DIR"
+            fi
+
+            cd "$FE_DIR"
+            git pull origin main
+
+            if [ ! -f .env ]; then
+              cp .env.production.example .env
+            fi
+
+            docker compose -f docker-compose.prod.yml build --pull
+            docker compose -f docker-compose.prod.yml up -d
+
+            sleep 10
+            curl -sf http://localhost:3000 >/dev/null
