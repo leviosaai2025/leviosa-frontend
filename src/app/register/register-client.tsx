@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { Loader2, UserPlus } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 
@@ -17,9 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { authApi } from "@/lib/api";
-import { getErrorMessage } from "@/lib/api-client";
-import { hasStoredAccessToken } from "@/lib/auth-storage";
+import { createClient } from "@/lib/supabase/client";
 
 interface FormErrors {
   name?: string;
@@ -37,12 +35,6 @@ export function RegisterClient() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (hasStoredAccessToken()) {
-      router.replace("/sourcing");
-    }
-  }, [router]);
 
   const validate = (): FormErrors => {
     const nextErrors: FormErrors = {};
@@ -82,16 +74,25 @@ export function RegisterClient() {
 
     try {
       setIsSubmitting(true);
-      await authApi.register({
-        name: name.trim(),
+      const supabase = createClient();
+      const { error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
+        options: {
+          data: {
+            name: name.trim(),
+          },
+        },
       });
+
+      if (error) {
+        throw new Error(error.message);
+      }
 
       toast.success("Registration complete. Please sign in.");
       router.push("/login");
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      toast.error(error instanceof Error ? error.message : "Registration failed");
     } finally {
       setIsSubmitting(false);
     }
@@ -101,8 +102,8 @@ export function RegisterClient() {
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,theme(colors.sky.100),theme(colors.background))] px-4 py-8">
       <Card className="w-full max-w-md border-slate-200/70 shadow-lg">
         <CardHeader>
-          <CardTitle className="text-xl">Create your Leviosa CS account</CardTitle>
-          <CardDescription>Register your seller account to start automating support workflows.</CardDescription>
+          <CardTitle className="text-xl">Create your Leviosa account</CardTitle>
+          <CardDescription>Register your account to start using Leviosa services.</CardDescription>
         </CardHeader>
 
         <CardContent>

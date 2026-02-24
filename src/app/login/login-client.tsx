@@ -1,13 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import Image from "next/image";
 
 import { AuthComponent } from "@/components/ui/sign-up";
-import { authApi } from "@/lib/api";
-import { getErrorMessage } from "@/lib/api-client";
-import { hasStoredAccessToken, setStoredTokens } from "@/lib/auth-storage";
+import { createClient } from "@/lib/supabase/client";
 
 const Logo = () => (
   <Image
@@ -23,20 +20,13 @@ const Logo = () => (
 export function LoginClient() {
   const router = useRouter();
 
-  useEffect(() => {
-    if (hasStoredAccessToken()) {
-      router.replace("/sourcing");
-    }
-  }, [router]);
-
   const handleLogin = async (email: string, password: string) => {
-    try {
-      const response = await authApi.login({ email, password });
-      setStoredTokens(response.data);
-      router.replace("/sourcing");
-    } catch (error) {
-      throw new Error(getErrorMessage(error));
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      throw new Error(error.message);
     }
+    router.replace("/sourcing");
   };
 
   return (

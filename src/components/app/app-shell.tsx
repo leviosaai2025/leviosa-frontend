@@ -39,8 +39,7 @@ import {
   SidebarLink,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { authApi } from "@/lib/api";
-import { clearStoredTokens, hasStoredAccessToken } from "@/lib/auth-storage";
+import { createClient } from "@/lib/supabase/client";
 import { getErrorMessage } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type { InquiryStatus, SellerResponse } from "@/types/api";
@@ -287,8 +286,18 @@ export function AppShell({ children }: AppShellProps) {
   const loadSeller = useCallback(async () => {
     try {
       setSellerLoading(true);
-      const response = await authApi.me();
-      setSeller(response.data);
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Build seller response from Supabase user data
+        setSeller({
+          id: user.id,
+          email: user.email ?? "",
+          name: user.user_metadata?.name ?? user.email ?? "User",
+          is_active: true,
+          created_at: user.created_at,
+        });
+      }
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -297,12 +306,16 @@ export function AppShell({ children }: AppShellProps) {
   }, []);
 
   useEffect(() => {
-    if (!hasStoredAccessToken()) {
-      router.replace("/login");
-      return;
-    }
-
-    setAuthChecked(true);
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+      setAuthChecked(true);
+    };
+    void checkAuth();
   }, [router]);
 
   useEffect(() => {
@@ -310,8 +323,9 @@ export function AppShell({ children }: AppShellProps) {
     void loadSeller();
   }, [authChecked, loadSeller]);
 
-  const handleLogout = useCallback(() => {
-    clearStoredTokens();
+  const handleLogout = useCallback(async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     router.replace("/login");
   }, [router]);
 

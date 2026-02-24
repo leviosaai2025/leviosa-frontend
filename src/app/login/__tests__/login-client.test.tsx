@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Mock framer-motion to passthrough children without animation
 vi.mock("framer-motion", () => {
   const Passthrough = ({ children, ...props }: React.PropsWithChildren<Record<string, unknown>>) => {
-    // Filter out motion-specific props
     const htmlProps: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(props)) {
       if (!["initial", "animate", "exit", "variants", "transition", "whileHover", "whileTap", "key"].includes(key)) {
@@ -26,20 +25,14 @@ vi.mock("framer-motion", () => {
   };
 });
 
-// Mock auth storage
-vi.mock("@/lib/auth-storage", () => ({
-  hasStoredAccessToken: vi.fn(() => false),
-  setStoredTokens: vi.fn(),
-  getAccessToken: vi.fn(() => null),
-  getRefreshToken: vi.fn(() => null),
-  clearStoredTokens: vi.fn(),
-}));
-
-// Mock API
-vi.mock("@/lib/api", () => ({
-  authApi: {
-    login: vi.fn(),
-  },
+// Mock Supabase client
+const mockSignInWithPassword = vi.fn();
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    auth: {
+      signInWithPassword: mockSignInWithPassword,
+    },
+  }),
 }));
 
 vi.mock("@/lib/api-client", () => ({
@@ -47,8 +40,6 @@ vi.mock("@/lib/api-client", () => ({
 }));
 
 import { useRouter } from "next/navigation";
-import { authApi } from "@/lib/api";
-import { hasStoredAccessToken } from "@/lib/auth-storage";
 import { LoginClient } from "@/app/login/login-client";
 
 describe("LoginClient", () => {
@@ -63,17 +54,11 @@ describe("LoginClient", () => {
       refresh: vi.fn(),
       prefetch: vi.fn(),
     });
-    vi.mocked(hasStoredAccessToken).mockReturnValue(false);
+    mockSignInWithPassword.mockResolvedValue({ error: null });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  it("redirects to /sourcing if user already has a token", () => {
-    vi.mocked(hasStoredAccessToken).mockReturnValue(true);
-    render(<LoginClient />);
-    expect(mockReplace).toHaveBeenCalledWith("/sourcing");
   });
 
   it('renders "Welcome back" heading', () => {
@@ -81,12 +66,9 @@ describe("LoginClient", () => {
     expect(screen.getByText("Welcome back")).toBeInTheDocument();
   });
 
-  it("completes login flow: email → password → submit", async () => {
+  it("completes login flow: email -> password -> submit", async () => {
     const user = userEvent.setup();
-    vi.mocked(authApi.login).mockResolvedValue({
-      data: { access_token: "at", refresh_token: "rt", token_type: "bearer" },
-      message: "ok",
-    });
+    mockSignInWithPassword.mockResolvedValue({ error: null });
 
     render(<LoginClient />);
 
@@ -102,7 +84,7 @@ describe("LoginClient", () => {
     const signInButton = screen.getByLabelText("Sign in");
     await user.click(signInButton);
 
-    expect(authApi.login).toHaveBeenCalledWith({
+    expect(mockSignInWithPassword).toHaveBeenCalledWith({
       email: "test@example.com",
       password: "secret123",
     });
@@ -110,7 +92,9 @@ describe("LoginClient", () => {
 
   it("displays error message when login fails", async () => {
     const user = userEvent.setup();
-    vi.mocked(authApi.login).mockRejectedValue(new Error("Invalid credentials"));
+    mockSignInWithPassword.mockResolvedValue({
+      error: { message: "Invalid credentials" },
+    });
 
     render(<LoginClient />);
 

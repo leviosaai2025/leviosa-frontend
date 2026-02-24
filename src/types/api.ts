@@ -20,28 +20,7 @@ export interface ErrorResponse {
   detail: string | ValidationErrorDetail[];
 }
 
-// === Auth ===
-export interface SellerRegister {
-  email: string;
-  password: string;
-  name: string;
-}
-
-export interface SellerLogin {
-  email: string;
-  password: string;
-}
-
-export interface TokenRefresh {
-  refresh_token: string;
-}
-
-export interface TokenPair {
-  access_token: string;
-  refresh_token: string;
-  token_type: "bearer";
-}
-
+// === Auth / User ===
 export interface SellerResponse {
   id: string;
   email: string;

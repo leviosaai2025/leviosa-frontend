@@ -13,15 +13,11 @@ import type {
   NaverConnectRequest,
   NaverConnectionResponse,
   NaverConnectionStatus,
-  SellerLogin,
-  SellerRegister,
   SellerResponse,
   SuccessResponse,
   TalkTalkConnectRequest,
   TalkTalkConnectResponse,
   TalkTalkStatus,
-  TokenPair,
-  TokenRefresh,
   DashboardPeriod,
   DashboardStats,
 } from "@/types/api";
@@ -39,30 +35,6 @@ function buildQueryString(params: Record<string, string | number | undefined>): 
 }
 
 export const authApi = {
-  register(payload: SellerRegister) {
-    return apiRequest<SuccessResponse<SellerResponse>>("/api/v1/auth/register", {
-      method: "POST",
-      body: payload,
-      auth: false,
-    });
-  },
-
-  login(payload: SellerLogin) {
-    return apiRequest<SuccessResponse<TokenPair>>("/api/v1/auth/login", {
-      method: "POST",
-      body: payload,
-      auth: false,
-    });
-  },
-
-  refresh(payload: TokenRefresh) {
-    return apiRequest<SuccessResponse<TokenPair>>("/api/v1/auth/refresh", {
-      method: "POST",
-      body: payload,
-      auth: false,
-    });
-  },
-
   me() {
     return apiRequest<SuccessResponse<SellerResponse>>("/api/v1/auth/me");
   },

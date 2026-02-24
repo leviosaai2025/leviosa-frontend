@@ -1,17 +1,20 @@
-import { clearStoredTokens, getAccessToken, getRefreshToken, setStoredTokens } from "@/lib/auth-storage";
-import type { ErrorResponse, SuccessResponse, TokenPair, ValidationErrorDetail } from "@/types/api";
+import { createClient } from "@/lib/supabase/client";
+import type { ErrorResponse, ValidationErrorDetail } from "@/types/api";
 
-const API_URL = process.env.NEXT_PUBLIC_CS_API_URL ?? "http://localhost:8000";
+const CS_API_URL = process.env.NEXT_PUBLIC_CS_API_URL ?? "http://localhost:8000";
+const SOURCING_API_URL = process.env.NEXT_PUBLIC_SOURCING_API_URL ?? "http://localhost:8001";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+type ApiTarget = "cs" | "sourcing";
 
 interface ApiRequestOptions {
   method?: HttpMethod;
   body?: unknown;
   headers?: HeadersInit;
   auth?: boolean;
-  retryOnAuthFailure?: boolean;
   signal?: AbortSignal;
+  target?: ApiTarget;
 }
 
 export class ApiError extends Error {
@@ -32,8 +35,6 @@ export class ReauthRequiredError extends ApiError {
     this.name = "ReauthRequiredError";
   }
 }
-
-let refreshPromise: Promise<TokenPair | null> | null = null;
 
 async function safeParseJson<T>(response: Response): Promise<T | null> {
   try {
@@ -68,41 +69,11 @@ async function buildApiError(response: Response): Promise<ApiError> {
   return new ApiError(message, response.status, detail);
 }
 
-async function refreshTokens(): Promise<TokenPair | null> {
-  const refreshToken = getRefreshToken();
-
-  if (!refreshToken) {
-    return null;
-  }
-
-  if (!refreshPromise) {
-    refreshPromise = fetch(`${API_URL}/api/v1/auth/refresh`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          return null;
-        }
-
-        const payload = await safeParseJson<SuccessResponse<TokenPair>>(response);
-        if (!payload?.data) {
-          return null;
-        }
-
-        setStoredTokens(payload.data);
-        return payload.data;
-      })
-      .catch(() => null)
-      .finally(() => {
-        refreshPromise = null;
-      });
-  }
-
-  return refreshPromise;
+async function getSupabaseAccessToken(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
 }
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
@@ -111,9 +82,11 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     body,
     headers,
     auth = true,
-    retryOnAuthFailure = true,
     signal,
+    target = "cs",
   } = options;
+
+  const baseUrl = target === "sourcing" ? SOURCING_API_URL : CS_API_URL;
 
   const requestHeaders = new Headers(headers);
 
@@ -122,37 +95,29 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   if (auth) {
-    const accessToken = getAccessToken();
+    const accessToken = await getSupabaseAccessToken();
     if (accessToken) {
       requestHeaders.set("Authorization", `Bearer ${accessToken}`);
     }
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers: requestHeaders,
     body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
     signal,
   });
 
-  if (auth && response.status === 401) {
-    if (retryOnAuthFailure) {
-      const refreshed = await refreshTokens();
-      if (refreshed) {
-        return apiRequest<T>(path, {
-          ...options,
-          retryOnAuthFailure: false,
-        });
+  if (auth && (response.status === 401 || response.status === 403)) {
+    // Session might have expired — redirect to login
+    if (typeof window !== "undefined") {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.href = "/login";
+        throw new ReauthRequiredError();
       }
     }
-
-    clearStoredTokens();
-
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
-    }
-
-    throw new ReauthRequiredError();
   }
 
   if (!response.ok) {

@@ -35,7 +35,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https://api.dicebear.com https://*.domeggook.com",
-              "connect-src 'self' https://cs.leviosa.ai.kr http://localhost:8000 http://localhost:5001 http://localhost:8001",
+              "connect-src 'self' https://*.supabase.co https://cs.leviosa.ai.kr http://localhost:8000 http://localhost:5001 http://localhost:8001",
               "frame-ancestors 'none'",
             ].join("; "),
           },

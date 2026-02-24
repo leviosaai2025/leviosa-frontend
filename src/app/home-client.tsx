@@ -4,18 +4,22 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { hasStoredAccessToken } from "@/lib/auth-storage";
+import { createClient } from "@/lib/supabase/client";
 
 export function HomeClient() {
   const router = useRouter();
 
   useEffect(() => {
-    if (hasStoredAccessToken()) {
-      router.replace("/sourcing");
-      return;
-    }
-
-    router.replace("/login");
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        router.replace("/sourcing");
+      } else {
+        router.replace("/login");
+      }
+    };
+    void checkAuth();
   }, [router]);
 
   return (
