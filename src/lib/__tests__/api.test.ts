@@ -29,24 +29,6 @@ describe("api wrappers", () => {
     vi.restoreAllMocks();
   });
 
-  it("authApi.login calls POST /api/v1/auth/login without auth", async () => {
-    await authApi.login({ email: "a@b.com", password: "pass" });
-    expect(mockApiRequest).toHaveBeenCalledWith("/api/v1/auth/login", {
-      method: "POST",
-      body: { email: "a@b.com", password: "pass" },
-      auth: false,
-    });
-  });
-
-  it("authApi.register calls POST /api/v1/auth/register without auth", async () => {
-    await authApi.register({ email: "a@b.com", password: "pass", name: "Test" });
-    expect(mockApiRequest).toHaveBeenCalledWith("/api/v1/auth/register", {
-      method: "POST",
-      body: { email: "a@b.com", password: "pass", name: "Test" },
-      auth: false,
-    });
-  });
-
   it("authApi.me calls GET /api/v1/auth/me with default auth", async () => {
     await authApi.me();
     expect(mockApiRequest).toHaveBeenCalledWith("/api/v1/auth/me");

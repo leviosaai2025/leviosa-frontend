@@ -3,9 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, ReauthRequiredError, apiRequest, getErrorMessage } from "@/lib/api-client";
 import { emptyResponse, errorResponse, jsonResponse, mockFetch } from "@/test/helpers/mock-fetch";
 
+// Mock Supabase client
+const mockGetSession = vi.fn();
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    auth: {
+      getSession: mockGetSession,
+    },
+  }),
+}));
+
 describe("apiRequest", () => {
   beforeEach(() => {
     localStorage.clear();
+    mockGetSession.mockResolvedValue({ data: { session: null } });
     // Prevent redirect side-effects
     delete (window as Record<string, unknown>).location;
     Object.defineProperty(window, "location", {
@@ -45,7 +56,9 @@ describe("apiRequest", () => {
   });
 
   it("attaches Authorization header when auth is true and token exists", async () => {
-    localStorage.setItem("leviosa_cs_access_token", "my-token");
+    mockGetSession.mockResolvedValue({
+      data: { session: { access_token: "my-token" } },
+    });
     mockFetch(jsonResponse({ data: null }));
 
     await apiRequest("/api/v1/test");
@@ -55,7 +68,9 @@ describe("apiRequest", () => {
   });
 
   it("does not attach Authorization header when auth is false", async () => {
-    localStorage.setItem("leviosa_cs_access_token", "my-token");
+    mockGetSession.mockResolvedValue({
+      data: { session: { access_token: "my-token" } },
+    });
     mockFetch(jsonResponse({ data: null }));
 
     await apiRequest("/api/v1/test", { auth: false });
@@ -104,40 +119,21 @@ describe("apiRequest", () => {
     }
   });
 
-  it("attempts token refresh on 401 then retries", async () => {
-    localStorage.setItem("leviosa_cs_access_token", "expired");
-    localStorage.setItem("leviosa_cs_refresh_token", "valid-refresh");
-
-    const refreshBody = {
-      data: {
-        access_token: "new-access",
-        refresh_token: "new-refresh",
-        token_type: "bearer",
-      },
-    };
-    const successBody = { data: { ok: true } };
-
-    const fetchFn = mockFetch(
-      jsonResponse(null, { status: 401 }), // initial 401
-      jsonResponse(refreshBody),            // refresh succeeds
-      jsonResponse(successBody),            // retry succeeds
-    );
-
-    const result = await apiRequest("/api/v1/test");
-    expect(result).toEqual(successBody);
-    expect(fetchFn).toHaveBeenCalledTimes(3);
-  });
-
-  it("throws ReauthRequiredError when refresh fails", async () => {
-    localStorage.setItem("leviosa_cs_access_token", "expired");
-    localStorage.setItem("leviosa_cs_refresh_token", "bad-refresh");
-
-    mockFetch(
-      jsonResponse(null, { status: 401 }),
-      jsonResponse(null, { status: 401 }),
-    );
+  it("redirects to login on 401 when session is expired", async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    mockFetch(errorResponse("Unauthorized", 401));
 
     await expect(apiRequest("/api/v1/test")).rejects.toThrow(ReauthRequiredError);
+    expect(window.location.href).toBe("/login");
+  });
+
+  it("throws ApiError on 401 when session still valid", async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: { access_token: "still-valid" } },
+    });
+    mockFetch(errorResponse("Unauthorized", 401));
+
+    await expect(apiRequest("/api/v1/test")).rejects.toThrow(ApiError);
   });
 
   it("does not set Content-Type for FormData bodies", async () => {
