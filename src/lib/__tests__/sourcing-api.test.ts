@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// Mock Supabase client
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+    },
+  }),
+}));
+
 import { SourcingApiError, searchProducts } from "@/lib/sourcing-api";
 import { jsonResponse, mockFetch } from "@/test/helpers/mock-fetch";
 

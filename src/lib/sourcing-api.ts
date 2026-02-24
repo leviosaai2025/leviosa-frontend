@@ -2,6 +2,7 @@ import type {
   ProductSearchRequest,
   ProductSearchResponse,
 } from "@/types/sourcing";
+import { createClient } from "@/lib/supabase/client";
 
 const configuredSourcingApiUrl =
   process.env.NEXT_PUBLIC_SOURCING_API_URL?.trim() || "";
@@ -18,6 +19,16 @@ const SOURCING_API_URL = shouldUseRelativeSourcingUrl
       ? window.location.origin
       : "http://localhost:5001");
 
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  if (typeof window === "undefined") return {};
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    return { Authorization: `Bearer ${session.access_token}` };
+  }
+  return {};
+}
+
 export class SourcingApiError extends Error {
   status: number;
 
@@ -32,10 +43,12 @@ export async function searchProducts(
   params: ProductSearchRequest,
   signal?: AbortSignal,
 ): Promise<ProductSearchResponse> {
+  const auth = await getAuthHeaders();
   const response = await fetch(`${SOURCING_API_URL}/api/domeggook/search`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...auth,
     },
     body: JSON.stringify(params),
     signal,
@@ -75,11 +88,12 @@ export async function uploadToNaver(
   request: UploadToNaverRequest,
   signal?: AbortSignal,
 ): Promise<UploadToNaverResponse> {
+  const auth = await getAuthHeaders();
   const response = await fetch(
     `${SOURCING_API_URL}/api/domeggook/products/upload-to-naver`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...auth },
       body: JSON.stringify(request),
       signal,
     },
