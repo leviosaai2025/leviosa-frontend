@@ -971,7 +971,7 @@ export function SourcingClient() {
   // ---------- Results layout (after search) ----------
 
   return (
-    <div className="relative flex h-[calc(100vh-4rem)] flex-col gap-3 max-w-6xl mx-auto overflow-hidden">
+    <div className="relative flex min-h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] flex-col gap-3 mx-auto overflow-x-hidden overflow-y-auto lg:overflow-hidden px-4 lg:px-10">
       {/* ── Compact search bar centered ── */}
       <div className="flex-shrink-0 flex items-center justify-center pt-1">
         <div className="w-full max-w-xs">{renderSearchBar(true)}</div>
@@ -980,14 +980,14 @@ export function SourcingClient() {
 
       {/* ── Results: List + Card Swipe ── */}
       {loading ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center gap-6">
-          <div className="w-[576px] flex-shrink-0 flex flex-col gap-2">
+        <div className="flex min-h-0 flex-1 flex-col items-center gap-4 lg:flex-row lg:justify-center lg:gap-8">
+          <div className="w-full max-w-[640px] lg:flex-1 lg:min-w-0 flex flex-col gap-2 order-2 lg:order-1">
             {Array.from({ length: 10 }).map((_, i) => (
               <Skeleton key={i} className="h-14 w-full rounded-lg" />
             ))}
           </div>
-          <div className="flex flex-col items-center gap-3">
-            <Skeleton className="h-[680px] w-[380px] rounded-2xl" />
+          <div className="flex flex-col items-center gap-3 order-1 lg:order-2">
+            <Skeleton className="h-[60vh] w-full max-w-[500px] lg:h-[680px] lg:w-[500px] rounded-2xl" />
             <div className="flex gap-2">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Skeleton key={i} className="size-11 rounded-full" />
@@ -996,10 +996,10 @@ export function SourcingClient() {
           </div>
         </div>
       ) : hasSearched && products.length > 0 ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center gap-6">
+        <div className="flex min-h-0 flex-1 flex-col items-center gap-4 pb-4 lg:flex-row lg:justify-center lg:gap-8 lg:pb-0">
           {/* ── Left: Product List ── */}
           <div
-            className="relative flex w-[576px] h-[680px] flex-shrink-0 flex-col rounded-xl border border-border/40 bg-white shadow-[0_1px_3px_rgba(0,0,0,.06),0_6px_16px_rgba(0,0,0,.06)]"
+            className="relative flex w-full max-w-[640px] lg:flex-1 lg:min-w-0 h-[60vh] lg:h-[680px] flex-col rounded-xl border border-border/40 bg-white shadow-[0_1px_3px_rgba(0,0,0,.06),0_6px_16px_rgba(0,0,0,.06)] order-2 lg:order-1"
           >
             {/* List header */}
             <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
@@ -1195,7 +1195,7 @@ export function SourcingClient() {
 
           {/* ── Right: Card Swipe ── */}
           {!reviewComplete ? (
-            <div className="flex h-[680px] flex-col items-center justify-center gap-3">
+            <div className="flex flex-col items-center justify-center gap-3 order-1 lg:order-2 lg:h-[680px] lg:flex-shrink-0">
               {/* Progress */}
               <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
                 <span>
@@ -1209,7 +1209,7 @@ export function SourcingClient() {
 
               {/* Card — sized to fit viewport */}
               <div
-                className="relative w-[380px] h-[680px] rounded-3xl shadow-[0_1px_3px_rgba(0,0,0,.06),0_6px_16px_rgba(0,0,0,.06)]"
+                className="relative w-full max-w-[500px] lg:w-[500px] h-[50vh] lg:h-[680px] rounded-3xl shadow-[0_1px_3px_rgba(0,0,0,.06),0_6px_16px_rgba(0,0,0,.06)]"
                 style={{ perspective: "1200px" }}
               >
                 <AnimatePresence mode="wait">
@@ -1334,7 +1334,7 @@ export function SourcingClient() {
             </div>
           ) : (
             /* ── Review Complete ── */
-            <div className="flex w-[380px] h-[680px] flex-col items-center justify-center gap-3">
+            <div className="flex w-full max-w-[500px] lg:w-[500px] h-[60vh] lg:h-[680px] flex-col items-center justify-center gap-3 order-1 lg:order-2 lg:flex-shrink-0">
               <div className="flex size-14 items-center justify-center rounded-full bg-emerald-100">
                 <Check className="size-7 text-emerald-600" />
               </div>

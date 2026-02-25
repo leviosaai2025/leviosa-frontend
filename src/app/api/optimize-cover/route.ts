@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+
+const REPLICATE_API_URL = "https://api.replicate.com/v1/models/prunaai/p-image-edit/predictions";
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
+  const apiToken = process.env.REPLICATE_API_TOKEN;
+  if (!apiToken) {
     return NextResponse.json(
-      { error: "GEMINI_API_KEY not configured" },
+      { error: "REPLICATE_API_TOKEN not configured" },
       { status: 500 },
     );
   }
@@ -22,82 +23,105 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const ai = new GoogleGenAI({ apiKey });
+  const prompt = `Edit this product image to create a professional e-commerce cover photo. Requirements:
+- Clean white or bright background
+- Center the product prominently
+- Professional studio photography feel
+- No text or watermarks, product image only
+${body.name ? `- Product: ${body.name}` : ""}
+
+Generate a high-quality product image.`;
 
   try {
-    // Fetch the original image
-    const imgResponse = await fetch(body.imageUrl);
-    if (!imgResponse.ok) {
+    // Create prediction
+    const createRes = await fetch(REPLICATE_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        "Content-Type": "application/json",
+        Prefer: "wait",
+      },
+      body: JSON.stringify({
+        input: {
+          prompt,
+          images: [body.imageUrl],
+          turbo: false,
+          aspect_ratio: "1:1",
+        },
+      }),
+    });
+
+    if (!createRes.ok) {
+      const err = await createRes.text().catch(() => "Replicate API error");
       return NextResponse.json(
-        { error: "Failed to fetch original image" },
-        { status: 400 },
+        { error: `Replicate error: ${err}` },
+        { status: createRes.status },
       );
     }
 
-    const arrayBuffer = await imgResponse.arrayBuffer();
-    const base64Image = Buffer.from(arrayBuffer).toString("base64");
-    const mimeType =
-      imgResponse.headers.get("content-type") || "image/jpeg";
+    let prediction = (await createRes.json()) as {
+      id: string;
+      status: string;
+      output: string | null;
+      error: string | null;
+      urls: { get: string };
+    };
 
-    const prompt = `이 상품 이미지를 참고하여, 네이버 스마트스토어에 적합한 전문적인 e-commerce 커버 이미지를 생성해주세요.
+    // If not completed yet, poll until done
+    while (prediction.status !== "succeeded" && prediction.status !== "failed" && prediction.status !== "canceled") {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-요구사항:
-- 깔끔한 흰색 또는 밝은 배경
-- 상품을 중앙에 배치하고 크게 표시
-- 전문적인 스튜디오 촬영 느낌
-- 텍스트나 워터마크 없이 상품 이미지만
-${body.name ? `- 상품명: ${body.name}` : ""}
+      const pollRes = await fetch(prediction.urls.get, {
+        headers: { Authorization: `Bearer ${apiToken}` },
+      });
 
-고품질 상품 이미지를 생성해주세요.`;
+      if (!pollRes.ok) {
+        return NextResponse.json(
+          { error: "Failed to poll prediction status" },
+          { status: 500 },
+        );
+      }
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType,
-                data: base64Image,
-              },
-            },
-            { text: prompt },
-          ],
-        },
-      ],
-    });
+      prediction = (await pollRes.json()) as typeof prediction;
+    }
 
-    // Extract generated image from response parts
-    const parts = response.candidates?.[0]?.content?.parts;
-    if (!parts) {
+    if (prediction.status === "failed") {
       return NextResponse.json(
-        { error: "No response from Gemini" },
+        { error: prediction.error || "Image generation failed" },
         { status: 500 },
       );
     }
 
-    for (const part of parts) {
-      if (part.inlineData?.data) {
-        return NextResponse.json({
-          image: part.inlineData.data,
-          mimeType: part.inlineData.mimeType || "image/png",
-        });
-      }
+    if (prediction.status === "canceled") {
+      return NextResponse.json(
+        { error: "Image generation was canceled" },
+        { status: 500 },
+      );
     }
 
-    // If no image was generated, return an explanation
-    const textPart = parts.find((p) => p.text);
-    return NextResponse.json(
-      {
-        error:
-          textPart?.text ||
-          "Image generation not available for this model configuration",
-      },
-      { status: 422 },
-    );
+    if (!prediction.output) {
+      return NextResponse.json(
+        { error: "No image generated" },
+        { status: 500 },
+      );
+    }
+
+    // Fetch the output image and convert to base64
+    const imageRes = await fetch(prediction.output);
+    if (!imageRes.ok) {
+      return NextResponse.json(
+        { error: "Failed to fetch generated image" },
+        { status: 500 },
+      );
+    }
+
+    const imageBuffer = await imageRes.arrayBuffer();
+    const base64 = Buffer.from(imageBuffer).toString("base64");
+    const mimeType = imageRes.headers.get("content-type") || "image/webp";
+
+    return NextResponse.json({ image: base64, mimeType });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Gemini API error";
+    const message = err instanceof Error ? err.message : "Replicate API error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
