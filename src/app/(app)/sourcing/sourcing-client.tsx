@@ -841,6 +841,7 @@ export function SourcingClient() {
 
   const renderSearchBar = (compact = false) => (
     <div
+      data-tour="search-input"
       onMouseEnter={() => {
         clearTimeout(hoverTimeoutRef.current);
         setHovered(true);
@@ -906,6 +907,7 @@ export function SourcingClient() {
       </motion.div>
 
       {/* Animated shortcut buttons (blob-emerge on hover) */}
+      <div data-tour="filter-shortcuts">
       <AnimatePresence mode="popLayout">
         {hovered &&
           FILTER_SHORTCUTS.map((shortcut, index) => (
@@ -945,6 +947,7 @@ export function SourcingClient() {
             </motion.div>
           ))}
       </AnimatePresence>
+      </div>
     </div>
   );
 
@@ -955,7 +958,7 @@ export function SourcingClient() {
   }, [minPrice, maxPrice]);
 
   const priceFilters = (
-    <div className="flex flex-wrap items-center gap-3">
+    <div data-tour="price-filters" className="flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-1.5">
         <span className="text-xs text-muted-foreground">Min ₩</span>
         <input
@@ -1061,6 +1064,7 @@ export function SourcingClient() {
         <div className="flex min-h-0 flex-1 flex-col items-center gap-4 pb-4 lg:flex-row lg:justify-center lg:gap-8 lg:pb-0">
           {/* ── Left: Product List ── */}
           <div
+            data-tour="product-list"
             className="relative flex w-full max-w-[640px] lg:flex-1 lg:min-w-0 h-[60vh] lg:h-[680px] flex-col rounded-xl border border-border/40 bg-white shadow-[0_1px_3px_rgba(0,0,0,.06),0_6px_16px_rgba(0,0,0,.06)] order-2 lg:order-1"
           >
             {/* List header */}
@@ -1159,7 +1163,7 @@ export function SourcingClient() {
             </div>
 
             {/* ── Bulk Actions Footer ── */}
-            <div className="flex-shrink-0 border-t border-border/40 px-3 py-2.5 space-y-2">
+            <div data-tour="bulk-actions" className="flex-shrink-0 border-t border-border/40 px-3 py-2.5 space-y-2">
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold px-0.5">
                 Quick actions — {accepted.size > 0 ? `${accepted.size} selected` : `all ${products.length}`}
               </p>
@@ -1257,7 +1261,7 @@ export function SourcingClient() {
 
           {/* ── Right: Card Swipe ── */}
           {!reviewComplete ? (
-            <div className="flex flex-col items-center justify-center gap-3 order-1 lg:order-2 lg:h-[680px] lg:flex-shrink-0">
+            <div data-tour="product-card" className="flex flex-col items-center justify-center gap-3 order-1 lg:order-2 lg:h-[680px] lg:flex-shrink-0">
               {/* Progress */}
               <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
                 <span>
@@ -1325,7 +1329,7 @@ export function SourcingClient() {
               </div>
 
               {/* Action buttons — tighter */}
-              <div className="flex items-center gap-2.5">
+              <div data-tour="swipe-buttons" className="flex items-center gap-2.5">
                 <button
                   onClick={handleSkip}
                   className="group flex size-11 items-center justify-center rounded-full border-2 border-neutral-200 bg-white transition-all hover:border-red-400 hover:bg-red-50 hover:scale-110 active:scale-95"
@@ -1335,6 +1339,7 @@ export function SourcingClient() {
                   <X className="!size-4.5 text-neutral-400 group-hover:text-red-500 transition-colors" />
                 </button>
 
+                <div data-tour="opt-buttons" className="flex items-center gap-2.5">
                 <button
                   onClick={handleSinglePriceOpt}
                   className="group flex size-12 items-center justify-center rounded-full bg-amber-500 text-white transition-all hover:bg-amber-600 hover:scale-110 active:scale-95 shadow-lg shadow-amber-500/25"
@@ -1379,6 +1384,7 @@ export function SourcingClient() {
                     <ImageIcon className="!size-5" />
                   )}
                 </button>
+                </div>
 
                 <button
                   onClick={handleAccept}
