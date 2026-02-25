@@ -131,6 +131,17 @@ export async function optimizeName(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new SourcingApiError("Login required to use this feature", 401);
+    }
+    if (response.status === 429) {
+      const data = await response.json().catch(() => ({}));
+      const body = data as { used?: number; limit?: number };
+      throw new SourcingApiError(
+        `Name optimization limit reached (${body.used ?? "?"}/${body.limit ?? "?"} used this month)`,
+        429,
+      );
+    }
     const data = await response.json().catch(() => ({ error: "Request failed" }));
     throw new SourcingApiError(
       (data as { error?: string }).error || "Name optimization failed",
@@ -160,6 +171,17 @@ export async function optimizeCover(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new SourcingApiError("Login required to use this feature", 401);
+    }
+    if (response.status === 429) {
+      const data = await response.json().catch(() => ({}));
+      const body = data as { used?: number; limit?: number };
+      throw new SourcingApiError(
+        `Cover generation limit reached (${body.used ?? "?"}/${body.limit ?? "?"} used this month)`,
+        429,
+      );
+    }
     const data = await response.json().catch(() => ({ error: "Request failed" }));
     throw new SourcingApiError(
       (data as { error?: string }).error || "Cover optimization failed",

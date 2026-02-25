@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { searchProducts, optimizeName, optimizeCover, uploadToNaver } from "@/lib/sourcing-api";
+import { searchProducts, optimizeName, optimizeCover, uploadToNaver, SourcingApiError } from "@/lib/sourcing-api";
 import {
   formatKRW,
   parsePrice,
@@ -573,7 +573,11 @@ export function SourcingClient() {
     } catch (err) {
       toast.dismiss(loadingId);
       if (err instanceof DOMException && err.name === "AbortError") return;
-      toast.error(err instanceof Error ? err.message : "Name optimization failed");
+      if (err instanceof SourcingApiError && err.status === 429) {
+        toast.warning(err.message);
+      } else {
+        toast.error(err instanceof Error ? err.message : "Name optimization failed");
+      }
     } finally {
       nameAbortRef.current = null;
       setNameOptLoading((prev) => {
@@ -613,7 +617,11 @@ export function SourcingClient() {
     } catch (err) {
       toast.dismiss(loadingId);
       if (err instanceof DOMException && err.name === "AbortError") return;
-      toast.error(err instanceof Error ? err.message : "Cover optimization failed");
+      if (err instanceof SourcingApiError && err.status === 429) {
+        toast.warning(err.message);
+      } else {
+        toast.error(err instanceof Error ? err.message : "Cover optimization failed");
+      }
     } finally {
       coverAbortRef.current = null;
       setCoverOptLoading((prev) => {
@@ -672,12 +680,18 @@ export function SourcingClient() {
           batch.map((p) => optimizeName(p.name, p.category, controller.signal)),
         );
 
+        // Check if any result hit the usage limit
+        let hitLimit = false;
+        let limitMessage = "";
         setOptimizedNames((prev) => {
           const next = new Map(prev);
           results.forEach((r, idx) => {
             if (r.status === "fulfilled") {
               next.set(batch[idx].product_no, r.value);
               successCount++;
+            } else if (r.reason instanceof SourcingApiError && r.reason.status === 429) {
+              hitLimit = true;
+              limitMessage = r.reason.message;
             }
           });
           return next;
@@ -688,6 +702,12 @@ export function SourcingClient() {
           for (const id of ids) next.delete(id);
           return next;
         });
+
+        if (hitLimit) {
+          toast.dismiss(loadingId);
+          toast.warning(limitMessage || "Name optimization limit reached");
+          return;
+        }
       }
 
       toast.dismiss(loadingId);
@@ -740,12 +760,18 @@ export function SourcingClient() {
           batch.map((p) => optimizeCover(p.image_url, p.name, controller.signal)),
         );
 
+        // Check if any result hit the usage limit
+        let hitLimit = false;
+        let limitMessage = "";
         setCoverImages((prev) => {
           const next = new Map(prev);
           results.forEach((r, idx) => {
             if (r.status === "fulfilled") {
               next.set(batch[idx].product_no, r.value.dataUrl);
               successCount++;
+            } else if (r.reason instanceof SourcingApiError && r.reason.status === 429) {
+              hitLimit = true;
+              limitMessage = r.reason.message;
             }
           });
           return next;
@@ -756,6 +782,12 @@ export function SourcingClient() {
           for (const id of ids) next.delete(id);
           return next;
         });
+
+        if (hitLimit) {
+          toast.dismiss(loadingId);
+          toast.warning(limitMessage || "Cover generation limit reached");
+          return;
+        }
       }
 
       toast.dismiss(loadingId);

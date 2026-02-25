@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { checkAndIncrementUsage } from "@/lib/supabase/usage";
 
 const REPLICATE_API_URL = "https://api.replicate.com/v1/models/prunaai/p-image-edit/predictions";
 
@@ -8,6 +10,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "REPLICATE_API_TOKEN not configured" },
       { status: 500 },
+    );
+  }
+
+  // Auth check
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    );
+  }
+
+  // Usage limit check
+  const usage = await checkAndIncrementUsage(
+    supabase,
+    user.id,
+    "cover_generation",
+  );
+
+  if (!usage.allowed) {
+    return NextResponse.json(
+      {
+        error: usage.error || "Usage limit reached",
+        used: usage.used,
+        limit: usage.limit,
+      },
+      { status: 429 },
     );
   }
 

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
+import { createClient } from "@/lib/supabase/server";
+import { checkAndIncrementUsage } from "@/lib/supabase/usage";
 
 export async function POST(request: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -7,6 +9,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "GEMINI_API_KEY not configured" },
       { status: 500 },
+    );
+  }
+
+  // Auth check
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 },
+    );
+  }
+
+  // Usage limit check
+  const usage = await checkAndIncrementUsage(
+    supabase,
+    user.id,
+    "name_optimization",
+  );
+
+  if (!usage.allowed) {
+    return NextResponse.json(
+      {
+        error: usage.error || "Usage limit reached",
+        used: usage.used,
+        limit: usage.limit,
+      },
+      { status: 429 },
     );
   }
 
