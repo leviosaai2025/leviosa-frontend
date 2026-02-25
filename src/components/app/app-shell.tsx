@@ -62,12 +62,22 @@ const NAV_LINKS = [
 ];
 
 function LogoIcon() {
+  const { open: sidebarOpen, animate } = useSidebar();
   return (
     <Link
       href="/sourcing"
-      className="flex w-9 items-center justify-center py-1 relative z-20"
+      className="flex items-center gap-2.5 px-2 py-1 relative z-20"
     >
       <Image src="/leviosa-logo-bw.png" alt="Leviosa AI" width={24} height={24} className="w-6 h-6 flex-shrink-0 object-contain" />
+      <motion.span
+        animate={{
+          display: animate ? (sidebarOpen ? "inline-block" : "none") : "inline-block",
+          opacity: animate ? (sidebarOpen ? 1 : 0) : 1,
+        }}
+        className="text-lg font-extrabold tracking-tight text-sidebar-foreground whitespace-pre inline-block !p-0 !m-0"
+      >
+        Leviosa
+      </motion.span>
     </Link>
   );
 }
@@ -149,6 +159,7 @@ function UserPopupMenu({
                 Upgrade plan
               </button>
               <button
+                data-tour="settings-button"
                 onClick={() => {
                   setMenuOpen(false);
                   onOpenSettings();

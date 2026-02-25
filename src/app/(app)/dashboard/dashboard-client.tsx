@@ -336,6 +336,7 @@ export function DashboardClient() {
       ) : stats ? (
         <div className="flex flex-1 flex-col gap-4">
           {/* Stat cards */}
+          <div data-tour="stat-cards">
           <BentoGrid className="flex-1 auto-rows-[minmax(10rem,1fr)] lg:grid-rows-[1fr_1fr]">
             <StatCard
               Icon={AlertCircle}
@@ -398,10 +399,11 @@ export function DashboardClient() {
               numberClassName="bg-gradient-to-br from-violet-500/45 to-purple-500/25"
             />
           </BentoGrid>
+          </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
             {/* Activity chart */}
-            <div className={cn(BENTO_CARD_BASE, "lg:col-span-3 flex flex-col bg-gradient-to-br from-white/90 to-slate-50/50")}>
+            <div data-tour="activity-chart" className={cn(BENTO_CARD_BASE, "lg:col-span-3 flex flex-col bg-gradient-to-br from-white/90 to-slate-50/50")}>
               <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
                 <div>
                   <h3 className="text-sm font-semibold tracking-tight text-foreground">
@@ -417,7 +419,7 @@ export function DashboardClient() {
             </div>
 
             {/* Inquiry Queue */}
-            <div className={cn(BENTO_CARD_BASE, "lg:col-span-2 flex max-h-[320px] flex-col bg-gradient-to-br from-white/90 to-blue-50/20")}>
+            <div data-tour="inquiry-queue" className={cn(BENTO_CARD_BASE, "lg:col-span-2 flex max-h-[320px] flex-col bg-gradient-to-br from-white/90 to-blue-50/20")}>
               <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
                 <div>
                   <h3 className="text-sm font-semibold tracking-tight text-foreground">
