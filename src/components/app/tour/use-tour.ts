@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext } from "react";
+import { useContext, useMemo } from "react";
 import { TourContext } from "./tour-provider";
 import type { TourName } from "./tour-steps";
 
@@ -10,9 +10,13 @@ export function useTour(name: TourName) {
     throw new Error("useTour must be used within <TourProvider>");
   }
 
-  return {
-    pending: ctx.isTourPending(name),
-    complete: () => ctx.completeTour(name),
-    reset: () => ctx.resetTour(name),
-  };
+  const pending = ctx.isTourPending(name);
+  return useMemo(
+    () => ({
+      pending,
+      complete: () => ctx.completeTour(name),
+      reset: () => ctx.resetTour(name),
+    }),
+    [pending, ctx, name],
+  );
 }

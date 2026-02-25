@@ -16,11 +16,12 @@ export function TourTooltip({
   return (
     <div
       {...tooltipProps}
-      className="w-[360px] rounded-xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl shadow-black/40"
+      className="relative w-[360px] rounded-xl border border-neutral-700 bg-neutral-900 p-5 shadow-2xl shadow-black/40"
     >
       {/* Close button */}
       <button
         {...closeProps}
+        aria-label="Close"
         className="absolute right-3 top-3 text-neutral-500 hover:text-white transition-colors"
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">

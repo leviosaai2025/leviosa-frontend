@@ -98,7 +98,7 @@ export const SETTINGS_REMINDER_STEPS: Step[] = [
   {
     target: '[data-tour="settings-button"]',
     content:
-      "Make sure your Naver fee rate and profit margin are configured here before optimizing prices.",
+      "Click your avatar to access Settings — make sure your Naver fee rate and profit margin are configured before optimizing prices.",
     placement: "right",
     disableBeacon: true,
     spotlightClicks: true,

@@ -59,14 +59,17 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const completeTour = useCallback((name: TourName) => {
     const key = TOUR_STORAGE_KEYS[name];
     writeFlag(key, true);
-    setSeen((prev) => ({ ...prev, [key]: true }));
+    setSeen((prev) => {
+      const next = { ...prev, [key]: true };
 
-    const mainTours: TourName[] = ["search", "results", "dashboard"];
-    const allKeys = mainTours.map((t) => TOUR_STORAGE_KEYS[t]);
-    const allDone = allKeys.every((k) => k === key || readFlag(k));
-    if (allDone) {
-      writeFlag("hasSeenTour", true);
-    }
+      const mainTours: TourName[] = ["search", "results", "dashboard"];
+      const allDone = mainTours.every((t) => next[TOUR_STORAGE_KEYS[t]]);
+      if (allDone) {
+        writeFlag("hasSeenTour", true);
+      }
+
+      return next;
+    });
   }, []);
 
   const resetTour = useCallback((name: TourName) => {

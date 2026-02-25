@@ -159,7 +159,6 @@ function UserPopupMenu({
                 Upgrade plan
               </button>
               <button
-                data-tour="settings-button"
                 onClick={() => {
                   setMenuOpen(false);
                   onOpenSettings();
@@ -191,6 +190,7 @@ function UserPopupMenu({
 
       {/* Avatar trigger button */}
       <button
+        data-tour="settings-button"
         onClick={() => setMenuOpen((prev) => !prev)}
         className={cn(
           "flex w-full items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-sidebar-accent/50",
