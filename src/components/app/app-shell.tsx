@@ -68,7 +68,7 @@ function LogoIcon() {
       href="/sourcing"
       className="flex items-center gap-2.5 px-2 py-1 relative z-20"
     >
-      <Image src="/leviosa-logo-bw.png" alt="Leviosa AI" width={24} height={24} className="w-6 h-6 flex-shrink-0 object-contain" />
+      <Image src="/leviosa-logo-bw.png" alt="Leviosa AI" width={40} height={40} className={cn("flex-shrink-0 object-contain transition-all duration-200", sidebarOpen ? "w-6 h-6" : "w-10 h-10")} />
       <motion.span
         animate={{
           display: animate ? (sidebarOpen ? "inline-block" : "none") : "inline-block",

@@ -6,6 +6,7 @@ import {
   Check,
   Copy,
   DollarSign,
+  Info,
   Loader2,
   MessageSquareText,
   PlugZap,
@@ -39,25 +40,76 @@ import type {
 
 type SectionId = "naver" | "talktalk" | "automation" | "ai-config" | "pricing";
 
-const SECTIONS: { id: SectionId; label: string; icon: React.ReactNode }[] = [
-  { id: "naver", label: "Naver API", icon: <PlugZap className="size-4" /> },
+const SECTIONS: { id: SectionId; label: string; icon: React.ReactNode; helpUrl: string; helpText: string }[] = [
+  { id: "naver", label: "Naver API", icon: <PlugZap className="size-4" />, helpUrl: "https://leviosa.notion.site/naver-api-setup", helpText: "How to get your Naver Commerce API credentials and connect your store." },
   {
     id: "talktalk",
     label: "TalkTalk",
     icon: <MessageSquareText className="size-4" />,
+    helpUrl: "https://leviosa.notion.site/talktalk-setup",
+    helpText: "How to set up TalkTalk real-time messaging and get your token.",
   },
-  { id: "automation", label: "Automation", icon: <Zap className="size-4" /> },
+  { id: "automation", label: "Automation", icon: <Zap className="size-4" />, helpUrl: "https://leviosa.notion.site/automation-setup", helpText: "How automation works: polling, confidence thresholds, and auto-posting." },
   {
     id: "ai-config",
     label: "AI Config",
     icon: <Sparkles className="size-4" />,
+    helpUrl: "https://leviosa.notion.site/ai-config-setup",
+    helpText: "How to configure AI responses with your policy text and FAQ data.",
   },
   {
     id: "pricing",
     label: "Pricing",
     icon: <DollarSign className="size-4" />,
+    helpUrl: "https://leviosa.notion.site/pricing-setup",
+    helpText: "How the pricing formula works and how to set fee and margin rates.",
   },
 ];
+
+// ---------- Help Tooltip ----------
+
+function HelpBadge({ helpUrl, helpText }: { helpUrl: string; helpText: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setShow((v) => !v)}
+        className="flex size-6 items-center justify-center rounded-full border border-neutral-200 text-neutral-400 transition-colors hover:border-neutral-300 hover:text-neutral-600 hover:bg-neutral-50"
+      >
+        <Info className="size-3.5" />
+      </button>
+      <AnimatePresence>
+        {show && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute top-full left-1/2 -translate-x-1/2 pt-1.5 z-50"
+          >
+            <div className="w-56 rounded-xl border border-neutral-100 bg-white p-3 shadow-[0_8px_24px_rgba(0,0,0,.12)]">
+              <p className="text-xs text-neutral-500 leading-relaxed">{helpText}</p>
+              <a
+                href={helpUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+              >
+                Learn more
+                <span aria-hidden="true">&rarr;</span>
+              </a>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 interface ConnectForm {
   naver_client_id: string;
@@ -974,7 +1026,8 @@ export function SettingsModal({
     }
   }, [automationConfig]);
 
-  const sectionTitle = SECTIONS.find((s) => s.id === section)?.label ?? "";
+  const currentSection = SECTIONS.find((s) => s.id === section);
+  const sectionTitle = currentSection?.label ?? "";
 
   return (
     <AnimatePresence>
@@ -1032,9 +1085,14 @@ export function SettingsModal({
               {/* Right content */}
               <div className="flex-1 flex flex-col min-w-0">
                 <div className="flex-shrink-0 px-6 pt-6 pb-1 border-b border-neutral-100">
-                  <h2 className="text-base font-semibold tracking-tight pb-3">
-                    {sectionTitle}
-                  </h2>
+                  <div className="flex items-center gap-2 pb-3">
+                    <h2 className="text-base font-semibold tracking-tight">
+                      {sectionTitle}
+                    </h2>
+                    {currentSection && (
+                      <HelpBadge helpUrl={currentSection.helpUrl} helpText={currentSection.helpText} />
+                    )}
+                  </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-6 pb-6">
                   {section === "naver" && (
