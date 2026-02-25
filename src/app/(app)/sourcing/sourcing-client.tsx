@@ -982,7 +982,6 @@ export function SourcingClient() {
       </motion.div>
 
       {/* Animated shortcut buttons (blob-emerge on hover) */}
-      <div data-tour="filter-shortcuts">
       <AnimatePresence mode="popLayout">
         {hovered &&
           FILTER_SHORTCUTS.map((shortcut, index) => (
@@ -1022,7 +1021,6 @@ export function SourcingClient() {
             </motion.div>
           ))}
       </AnimatePresence>
-      </div>
     </div>
   );
 

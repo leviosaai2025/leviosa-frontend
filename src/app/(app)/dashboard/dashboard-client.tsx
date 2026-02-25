@@ -377,8 +377,8 @@ export function DashboardClient() {
       ) : stats ? (
         <div className="flex flex-1 flex-col gap-4">
           {/* Stat cards */}
-          <div data-tour="stat-cards">
-          <BentoGrid className="flex-1 auto-rows-[minmax(10rem,1fr)] lg:grid-rows-[1fr_1fr]">
+          <div data-tour="stat-cards" className="flex-1">
+          <BentoGrid className="h-full auto-rows-[minmax(10rem,1fr)] lg:grid-rows-[1fr_1fr]">
             <StatCard
               Icon={AlertCircle}
               label="Needs Review"

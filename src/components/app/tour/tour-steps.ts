@@ -11,10 +11,11 @@ export const SEARCH_TOUR_STEPS: Step[] = [
     spotlightPadding: 8,
   },
   {
-    target: '[data-tour="filter-shortcuts"]',
+    target: '[data-tour="search-input"]',
     content:
-      "Use quick filters to narrow results — free shipping, sort by sales, price, or reviews. Hover here to reveal them.",
+      "Hover over the search bar to reveal quick filters — free shipping, sort by sales, price, or reviews.",
     placement: "bottom",
+    spotlightClicks: true,
     spotlightPadding: 8,
   },
   {
