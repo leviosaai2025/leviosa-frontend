@@ -377,8 +377,7 @@ export function DashboardClient() {
       ) : stats ? (
         <div className="flex flex-1 flex-col gap-4">
           {/* Stat cards */}
-          <div data-tour="stat-cards" className="flex-1">
-          <BentoGrid className="h-full auto-rows-[minmax(10rem,1fr)] lg:grid-rows-[1fr_1fr]">
+          <BentoGrid data-tour="stat-cards" className="flex-1 auto-rows-[minmax(10rem,1fr)] lg:grid-rows-[1fr_1fr]">
             <StatCard
               Icon={AlertCircle}
               label="Needs Review"
@@ -440,7 +439,6 @@ export function DashboardClient() {
               numberClassName="bg-gradient-to-br from-violet-500/45 to-purple-500/25"
             />
           </BentoGrid>
-          </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
             {/* Activity chart */}

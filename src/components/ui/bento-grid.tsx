@@ -8,16 +8,15 @@ import { Button } from "@/components/ui/button";
 const BentoGrid = ({
   children,
   className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) => {
+  ...rest
+}: React.ComponentPropsWithoutRef<"div">) => {
   return (
     <div
       className={cn(
         "grid w-full auto-rows-[22rem] grid-cols-3 gap-4",
         className,
       )}
+      {...rest}
     >
       {children}
     </div>
