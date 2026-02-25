@@ -25,7 +25,7 @@ import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { automationApi } from "@/lib/api";
+import { createClient } from "@/lib/supabase/client";
 import { searchProducts, optimizeName, optimizeCover, uploadToNaver } from "@/lib/sourcing-api";
 import {
   formatKRW,
@@ -259,10 +259,26 @@ export function SourcingClient() {
     }
     hydrated.current = true;
 
-    // Load user pricing settings
-    void automationApi.getConfig().then((res) => {
-      setUserFeeRate(res.data.naver_fee_rate);
-      setUserMarginRate(res.data.min_margin_rate);
+    // Load user pricing settings from Supabase
+    const supabase = createClient();
+    void supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      // Map Supabase auth ID → seller ID → automation config
+      const { data: seller } = await supabase
+        .from("sellers")
+        .select("id")
+        .eq("supabase_user_id", user.id)
+        .single();
+      if (!seller) return;
+      const { data: config } = await supabase
+        .from("automation_configs")
+        .select("naver_fee_rate, min_margin_rate")
+        .eq("seller_id", seller.id)
+        .single();
+      if (config) {
+        setUserFeeRate(config.naver_fee_rate);
+        setUserMarginRate(config.min_margin_rate);
+      }
     }).catch(() => {/* use defaults */});
   }, []);
 
