@@ -431,23 +431,36 @@ export function SourcingClient() {
 
   const handleSkip = useCallback(() => {
     if (reviewIndex >= products.length) return;
+    const product = products[reviewIndex];
+    // If product is already accepted, un-accept it without advancing
+    if (accepted.has(product.product_no)) {
+      setAccepted((prev) => {
+        const next = new Set(prev);
+        next.delete(product.product_no);
+        return next;
+      });
+      return;
+    }
     setExitDirection("left");
     setTimeout(() => {
       setReviewIndex((prev) => prev + 1);
       setExitDirection(null);
     }, 300);
-  }, [reviewIndex, products.length]);
+  }, [reviewIndex, products, accepted]);
 
   const handleAccept = useCallback(() => {
     if (reviewIndex >= products.length) return;
     const product = products[reviewIndex];
-    setAccepted((prev) => new Set(prev).add(product.product_no));
+    // If already accepted, just advance without re-adding
+    if (!accepted.has(product.product_no)) {
+      setAccepted((prev) => new Set(prev).add(product.product_no));
+    }
     setExitDirection("right");
     setTimeout(() => {
       setReviewIndex((prev) => prev + 1);
       setExitDirection(null);
     }, 300);
-  }, [reviewIndex, products]);
+  }, [reviewIndex, products, accepted]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -1208,6 +1221,13 @@ export function SourcingClient() {
                     key={`${product.product_no}-${index}`}
                     type="button"
                     onClick={() => {
+                      if (isAccepted) {
+                        setAccepted((prev) => {
+                          const next = new Set(prev);
+                          next.delete(product.product_no);
+                          return next;
+                        });
+                      }
                       setReviewIndex(index);
                       setExitDirection(null);
                     }}
@@ -1451,11 +1471,21 @@ export function SourcingClient() {
               <div data-tour="swipe-buttons" className="flex items-center gap-2.5">
                 <button
                   onClick={handleSkip}
-                  className="group flex size-11 items-center justify-center rounded-full border-2 border-neutral-200 bg-white transition-all hover:border-red-400 hover:bg-red-50 hover:scale-110 active:scale-95"
-                  aria-label="Skip product"
-                  title="Skip"
+                  className={cn(
+                    "group flex size-11 items-center justify-center rounded-full border-2 transition-all hover:scale-110 active:scale-95",
+                    currentProduct && accepted.has(currentProduct.product_no)
+                      ? "border-red-300 bg-red-50 hover:border-red-400 hover:bg-red-100"
+                      : "border-neutral-200 bg-white hover:border-red-400 hover:bg-red-50",
+                  )}
+                  aria-label={currentProduct && accepted.has(currentProduct.product_no) ? "Un-accept product" : "Skip product"}
+                  title={currentProduct && accepted.has(currentProduct.product_no) ? "Un-accept" : "Skip"}
                 >
-                  <X className="!size-4.5 text-neutral-400 group-hover:text-red-500 transition-colors" />
+                  <X className={cn(
+                    "!size-4.5 transition-colors",
+                    currentProduct && accepted.has(currentProduct.product_no)
+                      ? "text-red-500"
+                      : "text-neutral-400 group-hover:text-red-500",
+                  )} />
                 </button>
 
                 <div data-tour="opt-buttons" className="flex items-center gap-2.5">
@@ -1507,11 +1537,21 @@ export function SourcingClient() {
 
                 <button
                   onClick={handleAccept}
-                  className="group flex size-11 items-center justify-center rounded-full border-2 border-neutral-200 bg-white transition-all hover:border-emerald-400 hover:bg-emerald-50 hover:scale-110 active:scale-95"
+                  className={cn(
+                    "group flex size-11 items-center justify-center rounded-full border-2 transition-all hover:scale-110 active:scale-95",
+                    currentProduct && accepted.has(currentProduct.product_no)
+                      ? "border-emerald-300 bg-emerald-50 hover:border-emerald-400 hover:bg-emerald-100"
+                      : "border-neutral-200 bg-white hover:border-emerald-400 hover:bg-emerald-50",
+                  )}
                   aria-label="Accept product"
                   title="Accept"
                 >
-                  <Heart className="!size-4.5 text-neutral-400 group-hover:text-emerald-500 transition-colors" />
+                  <Heart className={cn(
+                    "!size-4.5 transition-colors",
+                    currentProduct && accepted.has(currentProduct.product_no)
+                      ? "text-emerald-500 fill-emerald-500"
+                      : "text-neutral-400 group-hover:text-emerald-500",
+                  )} />
                 </button>
               </div>
 
