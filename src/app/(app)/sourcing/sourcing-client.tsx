@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Joyride, { type CallBackProps, STATUS } from "react-joyride";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BarChart3,
@@ -37,6 +38,7 @@ import {
 } from "@/lib/sourcing-utils";
 import type { OptimizedPriceResult } from "@/lib/sourcing-utils";
 import type { ProductSearchRequest, SourcingProduct } from "@/types/sourcing";
+import { useTour, TourTooltip, TOUR_STEPS } from "@/components/app/tour";
 
 // ---------- Spotlight Search ----------
 
@@ -242,6 +244,15 @@ export function SourcingClient() {
   const uploadAbortRef = useRef<AbortController | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  // Tour state
+  const searchTour = useTour("search");
+  const resultsTour = useTour("results");
+  const settingsReminder = useTour("settings-reminder");
+
+  const [runSearchTour, setRunSearchTour] = useState(false);
+  const [runResultsTour, setRunResultsTour] = useState(false);
+  const [runSettingsReminder, setRunSettingsReminder] = useState(false);
+
   // ---------- Persist & Restore ----------
 
   const hydrated = useRef(false);
@@ -306,6 +317,32 @@ export function SourcingClient() {
     }, 500);
     return () => clearTimeout(timer);
   }, [keyword, minPrice, maxPrice, freeShipping, sort, products, accepted, reviewIndex, hasSearched, optimizedPrices, optimizedNames, coverImages]);
+
+  // ---------- Tour triggers ----------
+
+  // Search tour: show on first mount when in welcome state
+  useEffect(() => {
+    if (!hasSearched && searchTour.pending) {
+      const timer = setTimeout(() => setRunSearchTour(true), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [hasSearched, searchTour.pending]);
+
+  // Results tour: show when products first load
+  const hasTriggeredResultsTour = useRef(false);
+  useEffect(() => {
+    if (
+      hasSearched &&
+      products.length > 0 &&
+      !loading &&
+      resultsTour.pending &&
+      !hasTriggeredResultsTour.current
+    ) {
+      hasTriggeredResultsTour.current = true;
+      const timer = setTimeout(() => setRunResultsTour(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [hasSearched, products.length, loading, resultsTour.pending]);
 
   const currentProduct = useMemo(
     () => (reviewIndex < products.length ? products[reviewIndex] : null),
@@ -824,6 +861,10 @@ export function SourcingClient() {
   }, [accepted, handleBulkPriceOptimization, handleBulkNameOptimization, handleBulkImageOptimization, handleBulkUpload]);
 
   const handleSinglePriceOpt = useCallback(() => {
+    if (settingsReminder.pending) {
+      setRunSettingsReminder(true);
+      settingsReminder.complete();
+    }
     if (!currentProduct) return;
     const source = parsePrice(currentProduct.price);
     const price = calculateOptimizedPrice(source, userFeeRate, userMarginRate);
@@ -833,7 +874,41 @@ export function SourcingClient() {
       return next;
     });
     toast.success(`Optimized price: ${formatKRW(price)}`);
-  }, [currentProduct, userFeeRate, userMarginRate]);
+  }, [currentProduct, userFeeRate, userMarginRate, settingsReminder]);
+
+  // ---------- Tour callbacks ----------
+
+  const handleSearchTourCallback = useCallback(
+    (data: CallBackProps) => {
+      const { status } = data;
+      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+        setRunSearchTour(false);
+        searchTour.complete();
+      }
+    },
+    [searchTour],
+  );
+
+  const handleResultsTourCallback = useCallback(
+    (data: CallBackProps) => {
+      const { status } = data;
+      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+        setRunResultsTour(false);
+        resultsTour.complete();
+      }
+    },
+    [resultsTour],
+  );
+
+  const handleSettingsReminderCallback = useCallback(
+    (data: CallBackProps) => {
+      const { status } = data;
+      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+        setRunSettingsReminder(false);
+      }
+    },
+    [],
+  );
 
   // ---------- Render ----------
 
@@ -1015,6 +1090,22 @@ export function SourcingClient() {
   if (!hasSearched && !loading) {
     return (
       <div className="relative flex h-[calc(100vh-4rem)] flex-col items-center justify-center mx-auto overflow-hidden">
+        <Joyride
+          steps={TOUR_STEPS.search}
+          run={runSearchTour}
+          continuous
+          showSkipButton
+          callback={handleSearchTourCallback}
+          tooltipComponent={TourTooltip}
+          disableOverlayClose
+          scrollToFirstStep
+          styles={{
+            options: {
+              zIndex: 10000,
+              overlayColor: "rgba(0, 0, 0, 0.6)",
+            },
+          }}
+        />
         <div className="flex flex-col items-center gap-5 w-full max-w-xl px-4">
           <div className="text-center space-y-1.5">
             <h1 className="text-2xl font-semibold tracking-tight">
@@ -1037,6 +1128,36 @@ export function SourcingClient() {
 
   return (
     <div className="relative flex min-h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] flex-col gap-3 mx-auto overflow-x-hidden overflow-y-auto lg:overflow-hidden px-4 lg:px-10">
+      <Joyride
+        steps={TOUR_STEPS.results}
+        run={runResultsTour}
+        continuous
+        showSkipButton
+        callback={handleResultsTourCallback}
+        tooltipComponent={TourTooltip}
+        disableOverlayClose
+        scrollToFirstStep
+        styles={{
+          options: {
+            zIndex: 10000,
+            overlayColor: "rgba(0, 0, 0, 0.6)",
+          },
+        }}
+      />
+      <Joyride
+        steps={TOUR_STEPS["settings-reminder"]}
+        run={runSettingsReminder}
+        continuous
+        callback={handleSettingsReminderCallback}
+        tooltipComponent={TourTooltip}
+        disableOverlayClose
+        styles={{
+          options: {
+            zIndex: 10000,
+            overlayColor: "rgba(0, 0, 0, 0.6)",
+          },
+        }}
+      />
       {/* ── Compact search bar centered ── */}
       <div className="flex-shrink-0 flex items-center justify-center pt-1">
         <div className="w-full max-w-xs">{renderSearchBar(true)}</div>
