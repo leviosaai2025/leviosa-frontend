@@ -88,8 +88,12 @@ function ProductCard({
 
   return (
     <div className="absolute inset-0 flex flex-col rounded-3xl overflow-hidden bg-neutral-900">
-      {/* Full-bleed image */}
-      <div className="relative flex-1 min-h-0">
+      {/* Full-bleed image — click to toggle original / AI */}
+      <div
+        className="relative flex-1 min-h-0"
+        onClick={coverImage ? onToggleCover : undefined}
+        style={coverImage ? { cursor: "pointer" } : undefined}
+      >
         {displayImage ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -105,18 +109,19 @@ function ProductCard({
           </div>
         )}
 
-        {/* AI Generated badge + toggle */}
+        {/* Before / After badge */}
         {coverImage && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleCover?.();
-            }}
-            className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-emerald-500/80 backdrop-blur-sm px-2.5 py-1 text-[10px] font-semibold text-white transition-colors hover:bg-emerald-500"
+          <div
+            className={cn(
+              "absolute top-3 left-3 flex items-center gap-1 rounded-full backdrop-blur-sm px-2.5 py-1 text-[10px] font-semibold text-white transition-colors",
+              showOriginalCover
+                ? "bg-neutral-500/80"
+                : "bg-emerald-500/80",
+            )}
           >
             <Sparkles className="!size-3" />
-            {showOriginalCover ? "Show AI" : "AI Generated"}
-          </button>
+            {showOriginalCover ? "Original" : "AI Cover"}
+          </div>
         )}
 
         {/* Gradient overlay at bottom */}
@@ -466,10 +471,11 @@ export function SourcingClient() {
   }, []);
 
   const handleBulkUpload = useCallback(async () => {
-    if (accepted.size === 0) handleAcceptAll();
-    const targets = accepted.size > 0
-      ? products.filter((p) => accepted.has(p.product_no))
-      : products;
+    if (accepted.size === 0) {
+      toast.warning("Select products first");
+      return;
+    }
+    const targets = products.filter((p) => accepted.has(p.product_no));
 
     const productsData = targets.map((p) => {
       const data: Record<string, unknown> = { no: p.product_no };
@@ -523,13 +529,14 @@ export function SourcingClient() {
       uploadAbortRef.current = null;
       setUploading(false);
     }
-  }, [accepted, products, handleAcceptAll, optimizedNames, coverImages, userFeeRate, userMarginRate, resetToInitialState]);
+  }, [accepted, products, optimizedNames, coverImages, userFeeRate, userMarginRate, resetToInitialState]);
 
   const handleBulkPriceOptimization = useCallback(() => {
-    if (accepted.size === 0) handleAcceptAll();
-    const targets = accepted.size > 0
-      ? products.filter((p) => accepted.has(p.product_no))
-      : products;
+    if (accepted.size === 0) {
+      toast.warning("Select products first");
+      return;
+    }
+    const targets = products.filter((p) => accepted.has(p.product_no));
     setOptimizedPrices((prev) => {
       const next = new Map(prev);
       for (const p of targets) {
@@ -540,7 +547,7 @@ export function SourcingClient() {
       return next;
     });
     toast.success(`Optimized prices for ${targets.length} products`);
-  }, [accepted, products, handleAcceptAll, userFeeRate, userMarginRate]);
+  }, [accepted, products, userFeeRate, userMarginRate]);
 
   // ---------- Single Name / Cover Handlers ----------
 
@@ -653,10 +660,11 @@ export function SourcingClient() {
       return;
     }
 
-    if (accepted.size === 0) handleAcceptAll();
-    const targets = accepted.size > 0
-      ? products.filter((p) => accepted.has(p.product_no))
-      : products;
+    if (accepted.size === 0) {
+      toast.warning("Select products first");
+      return;
+    }
+    const targets = products.filter((p) => accepted.has(p.product_no));
 
     const controller = new AbortController();
     nameAbortRef.current = controller;
@@ -720,7 +728,7 @@ export function SourcingClient() {
       nameAbortRef.current = null;
       setNameOptLoading(new Set());
     }
-  }, [accepted, products, handleAcceptAll]);
+  }, [accepted, products]);
 
   const handleBulkImageOptimization = useCallback(async () => {
     // If already running → cancel
@@ -732,11 +740,13 @@ export function SourcingClient() {
       return;
     }
 
-    if (accepted.size === 0) handleAcceptAll();
-    const targets = (accepted.size > 0
-      ? products.filter((p) => accepted.has(p.product_no))
-      : products
-    ).filter((p) => p.image_url);
+    if (accepted.size === 0) {
+      toast.warning("Select products first");
+      return;
+    }
+    const targets = products
+      .filter((p) => accepted.has(p.product_no))
+      .filter((p) => p.image_url);
 
     const controller = new AbortController();
     coverAbortRef.current = controller;
@@ -800,14 +810,18 @@ export function SourcingClient() {
       coverAbortRef.current = null;
       setCoverOptLoading(new Set());
     }
-  }, [accepted, products, handleAcceptAll]);
+  }, [accepted, products]);
 
-  const handleDoEverything = useCallback(() => {
-    handleAcceptAll();
-    toast.success(
-      `Running all optimizations + upload for ${products.length} products — coming soon`,
-    );
-  }, [products, handleAcceptAll]);
+  const handleDoEverything = useCallback(async () => {
+    if (accepted.size === 0) {
+      toast.warning("Select products first");
+      return;
+    }
+    handleBulkPriceOptimization();
+    await handleBulkNameOptimization();
+    await handleBulkImageOptimization();
+    await handleBulkUpload();
+  }, [accepted, handleBulkPriceOptimization, handleBulkNameOptimization, handleBulkImageOptimization, handleBulkUpload]);
 
   const handleSinglePriceOpt = useCallback(() => {
     if (!currentProduct) return;
@@ -1147,7 +1161,7 @@ export function SourcingClient() {
             {/* ── Bulk Actions Footer ── */}
             <div className="flex-shrink-0 border-t border-border/40 px-3 py-2.5 space-y-2">
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold px-0.5">
-                Quick actions — all {products.length}
+                Quick actions — {accepted.size > 0 ? `${accepted.size} selected` : `all ${products.length}`}
               </p>
 
               <div className="grid grid-cols-2 gap-1.5">
@@ -1189,7 +1203,7 @@ export function SourcingClient() {
                   ) : (
                     <Upload className="!size-3.5" />
                   )}
-                  {uploading ? "Cancel" : "Upload All"}
+                  {uploading ? "Cancel" : "Upload"}
                 </button>
                 <button
                   onClick={handleBulkPriceOptimization}
