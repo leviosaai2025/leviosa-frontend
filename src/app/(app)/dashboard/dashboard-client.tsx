@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Joyride, { type CallBackProps, STATUS } from "react-joyride";
 import dynamic from "next/dynamic";
 import {
   Activity,
@@ -27,6 +28,7 @@ import { dashboardApi, inquiriesApi, naverApi, talktalkApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/api-client";
 import { formatTimeAgo, formatActivityData } from "@/lib/dashboard-utils";
 import type { ActivityItem, DashboardPeriod, DashboardStats, InquiryResponse, InquiryStatus, NaverConnectionStatus, TalkTalkStatus } from "@/types/api";
+import { useTour, TourTooltip, TOUR_STEPS } from "@/components/app/tour";
 
 const DashboardChart = dynamic(
   () => import("@/components/app/dashboard-chart"),
@@ -196,6 +198,10 @@ export function DashboardClient() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Tour state
+  const dashboardTour = useTour("dashboard");
+  const [runDashboardTour, setRunDashboardTour] = useState(false);
+
   const loadQueue = useCallback(async () => {
     try {
       const response = await inquiriesApi.list({
@@ -275,6 +281,25 @@ export function DashboardClient() {
     void loadQueue();
   }, [loadQueue]);
 
+  // Dashboard tour: show when stats load
+  useEffect(() => {
+    if (stats && !loading && dashboardTour.pending) {
+      const timer = setTimeout(() => setRunDashboardTour(true), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [stats, loading, dashboardTour.pending]);
+
+  const handleDashboardTourCallback = useCallback(
+    (data: CallBackProps) => {
+      const { status } = data;
+      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+        setRunDashboardTour(false);
+        dashboardTour.complete();
+      }
+    },
+    [dashboardTour],
+  );
+
   const periodLabel = PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "Today";
   const chartData = useMemo(() => formatActivityData(activity), [activity]);
 
@@ -284,6 +309,22 @@ export function DashboardClient() {
 
   return (
     <div className="relative flex min-h-[calc(100vh-4rem)] flex-col gap-6 max-w-6xl mx-auto">
+      <Joyride
+        steps={TOUR_STEPS.dashboard}
+        run={runDashboardTour}
+        continuous
+        showSkipButton
+        callback={handleDashboardTourCallback}
+        tooltipComponent={TourTooltip}
+        disableOverlayClose
+        scrollToFirstStep
+        styles={{
+          options: {
+            zIndex: 10000,
+            overlayColor: "rgba(0, 0, 0, 0.6)",
+          },
+        }}
+      />
       <div className="pointer-events-none absolute -top-8 left-0 right-0 h-64" />
       <div className="relative flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
