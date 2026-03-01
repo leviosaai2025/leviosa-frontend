@@ -127,6 +127,72 @@ function StyledToast({
   );
 }
 
+// ---------- Progress toast renderer ----------
+
+function StyledProgressToast({
+  toastId,
+  title,
+  completed,
+  total,
+}: {
+  toastId: string | number;
+  title: string;
+  completed: number;
+  total: number;
+}) {
+  const pct = total > 0 ? (completed / total) * 100 : 0;
+  const done = completed >= total;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 50, scale: 0.95 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className={cn(
+        "relative w-full max-w-xs rounded-xl border shadow-md overflow-hidden",
+        done ? variantStyles.success : variantStyles.loading,
+      )}
+    >
+      <div className="flex items-center justify-between p-3">
+        <div className="flex items-start gap-2">
+          {done ? (
+            <CheckCircle className={cn("h-4 w-4 mt-0.5 flex-shrink-0", iconColor.success)} />
+          ) : (
+            <Info className={cn("h-4 w-4 mt-0.5 flex-shrink-0", iconColor.loading)} />
+          )}
+          <div className="space-y-0.5">
+            <h3 className={cn("text-xs font-medium leading-none", done ? titleColor.success : titleColor.loading)}>
+              {title}
+            </h3>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {completed}/{total} completed
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => sonnerToast.dismiss(toastId)}
+          className="rounded-full p-1 hover:bg-muted/50 dark:hover:bg-muted/30 transition-colors flex-shrink-0 ml-2"
+          aria-label="Dismiss"
+        >
+          <X className="h-3 w-3 text-muted-foreground" />
+        </button>
+      </div>
+
+      <div className="h-1.5 w-full bg-blue-600/10 dark:bg-blue-400/10">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-300 ease-out",
+            done ? "bg-green-600 dark:bg-green-400" : "bg-blue-600 dark:bg-blue-400",
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
 // ---------- Functional API (drop-in replacement for sonner's toast) ----------
 
 interface ToastOptions {
@@ -148,6 +214,32 @@ function showToast(message: string, variant: Variant, options?: ToastOptions) {
   );
 }
 
+interface ProgressOptions {
+  /** Existing toast ID to update in place */
+  id?: string | number;
+}
+
+function showProgress(
+  title: string,
+  completed: number,
+  total: number,
+  options?: ProgressOptions,
+) {
+  const id = options?.id ?? `progress-${title}`;
+  sonnerToast.custom(
+    (toastId) => (
+      <StyledProgressToast
+        toastId={toastId}
+        title={title}
+        completed={completed}
+        total={total}
+      />
+    ),
+    { id, duration: completed >= total ? 3000 : Infinity },
+  );
+  return id;
+}
+
 export const toast = {
   success: (message: string, options?: ToastOptions) =>
     showToast(message, "success", options),
@@ -159,6 +251,7 @@ export const toast = {
     showToast(message, "warning", options),
   loading: (message: string, options?: ToastOptions) =>
     showToast(message, "loading", { ...options, duration: Infinity }),
+  progress: showProgress,
   dismiss: sonnerToast.dismiss,
 };
 

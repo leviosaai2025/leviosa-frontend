@@ -224,6 +224,7 @@ export function SourcingClient() {
   const [hasSearched, setHasSearched] = useState(false);
 
   // Card swipe state
+  const listRef = useRef<HTMLDivElement>(null);
   const [reviewIndex, setReviewIndex] = useState(0);
   const [accepted, setAccepted] = useState<Set<string>>(new Set());
   const [exitDirection, setExitDirection] = useState<"left" | "right" | null>(
@@ -479,6 +480,14 @@ export function SourcingClient() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [currentProduct, handleSkip, handleAccept]);
 
+  // Auto-scroll list to keep active item visible
+  useEffect(() => {
+    const container = listRef.current;
+    if (!container) return;
+    const activeItem = container.children[reviewIndex] as HTMLElement | undefined;
+    activeItem?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [reviewIndex]);
+
   // ---------- Bulk Actions ----------
 
   const allAccepted = useMemo(
@@ -541,9 +550,7 @@ export function SourcingClient() {
     const controller = new AbortController();
     uploadAbortRef.current = controller;
     setUploading(true);
-    const loadingId = toast.loading(
-      `Uploading ${targets.length} products to Naver...`,
-    );
+    const progressId = toast.progress("Upload to Naver", 0, targets.length);
 
     try {
       const res = await uploadToNaver(
@@ -556,11 +563,10 @@ export function SourcingClient() {
         controller.signal,
       );
 
-      toast.dismiss(loadingId);
-
       const succeeded = res.results.filter((r) => r.success).length;
       const failed = res.results.filter((r) => !r.success).length;
 
+      toast.dismiss(progressId);
       if (failed === 0) {
         toast.success(`All ${succeeded} products uploaded to Naver`);
       } else {
@@ -569,7 +575,7 @@ export function SourcingClient() {
 
       resetToInitialState();
     } catch (err) {
-      toast.dismiss(loadingId);
+      toast.dismiss(progressId);
       if (err instanceof DOMException && err.name === "AbortError") {
         toast.info("Upload cancelled");
         return;
@@ -718,8 +724,8 @@ export function SourcingClient() {
 
     const controller = new AbortController();
     nameAbortRef.current = controller;
-    const loadingId = toast.loading(`Optimizing names for ${targets.length} products...`);
     let successCount = 0;
+    const progressId = toast.progress("Name Optimization", 0, targets.length);
 
     try {
       // Process in batches of 3
@@ -755,6 +761,8 @@ export function SourcingClient() {
           return next;
         });
 
+        toast.progress("Name Optimization", Math.min(i + batch.length, targets.length), targets.length, { id: progressId });
+
         setNameOptLoading((prev) => {
           const next = new Set(prev);
           for (const id of ids) next.delete(id);
@@ -762,18 +770,17 @@ export function SourcingClient() {
         });
 
         if (hitLimit) {
-          toast.dismiss(loadingId);
+          toast.dismiss(progressId);
           toast.warning(limitMessage || "Name optimization limit reached");
           return;
         }
       }
 
-      toast.dismiss(loadingId);
       if (!controller.signal.aborted) {
-        toast.success(`Optimized ${successCount}/${targets.length} names`);
+        toast.progress("Name Optimization", targets.length, targets.length, { id: progressId });
       }
     } catch {
-      toast.dismiss(loadingId);
+      toast.dismiss(progressId);
     } finally {
       nameAbortRef.current = null;
       setNameOptLoading(new Set());
@@ -800,8 +807,8 @@ export function SourcingClient() {
 
     const controller = new AbortController();
     coverAbortRef.current = controller;
-    const loadingId = toast.loading(`Optimizing covers for ${targets.length} products...`);
     let successCount = 0;
+    const progressId = toast.progress("Cover Optimization", 0, targets.length);
 
     try {
       // Process in batches of 3
@@ -837,6 +844,8 @@ export function SourcingClient() {
           return next;
         });
 
+        toast.progress("Cover Optimization", Math.min(i + batch.length, targets.length), targets.length, { id: progressId });
+
         setCoverOptLoading((prev) => {
           const next = new Set(prev);
           for (const id of ids) next.delete(id);
@@ -844,18 +853,17 @@ export function SourcingClient() {
         });
 
         if (hitLimit) {
-          toast.dismiss(loadingId);
+          toast.dismiss(progressId);
           toast.warning(limitMessage || "Cover generation limit reached");
           return;
         }
       }
 
-      toast.dismiss(loadingId);
       if (!controller.signal.aborted) {
-        toast.success(`Optimized ${successCount}/${targets.length} covers`);
+        toast.progress("Cover Optimization", targets.length, targets.length, { id: progressId });
       }
     } catch {
-      toast.dismiss(loadingId);
+      toast.dismiss(progressId);
     } finally {
       coverAbortRef.current = null;
       setCoverOptLoading(new Set());
@@ -1210,7 +1218,7 @@ export function SourcingClient() {
             </div>
 
             {/* Scrollable list */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div ref={listRef} className="flex-1 overflow-y-auto overflow-x-hidden">
               {products.map((product, index) => {
                 const isActive = index === reviewIndex && !reviewComplete;
                 const isAccepted = accepted.has(product.product_no);
